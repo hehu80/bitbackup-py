@@ -35,7 +35,7 @@ def get_repositories(workspace: str, project: str, user: str, app_key: str):
         next_url = payload["next"]
 
 
-def sync_repositories(repositories, target_directory: str, sync_existing: bool = True):
+def sync_repositories(repositories, target_directory: str, only_download: bool = True):
     for repository in repositories:
         name = repository["name"]
         project = repository["project"]["name"]
@@ -43,7 +43,7 @@ def sync_repositories(repositories, target_directory: str, sync_existing: bool =
         repository_directory = os.path.join(target_directory, url[url.index('/') + 1: -4])
 
         if os.path.exists(repository_directory):
-            if sync_existing:
+            if not only_download:
                 print(f"remote update {project}/{name}")
                 subprocess.Popen(["git", "remote", "update"], cwd=repository_directory).wait()
             else:
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     args.add_argument("--target", dest="target_directory", default=".", help="Target Directory for Backups", type=str)
     args.add_argument("--project", dest="project", help="BitBucket Projekt", type=str)
 
-    args.add_argument("--only-download", dest="only_download", action="store_true", help="Don't update existing repos")
+    args.add_argument("--only-download", dest="only_download", default=False, action="store_true", help="Don't update existing repos")
 
     args.add_argument("--keepass-file", dest="keepass_file", help="KeePass Filename", type=str)
     args.add_argument("--keepass-entry", dest="keepass_entry", help="KeePass App Key Entry", type=str)

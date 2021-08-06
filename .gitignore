@@ -2,3 +2,5 @@
 /dist/
 /**/pysalad.egg-info/
 /.idea/
+/src/pybitbackup.egg-info/
+/bitbackup-py.iml

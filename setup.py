@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pybitbackup",
-    version="0.0.1",
+    version="0.0.4",
     author="Henning Voss",
     author_email="henning@huhehu.com",
     description="A Python tool to download all your BitBucket projects",
