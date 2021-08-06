@@ -8,7 +8,7 @@ repository already exists locally, `git remote update` will be executed.
 
 ## Installation
 ```bash
-pip install pybitbackup
+pip install pybitbackup 
 ```
 
 ## Usage
