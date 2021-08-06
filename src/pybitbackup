@@ -1,0 +1,115 @@
+#!/usr/bin/python3
+
+import argparse
+import sys
+import requests
+import json
+import subprocess
+import os
+import getpass
+
+
+def get_repositories(workspace: str, project: str, user: str, app_key: str):
+    repositories = []
+
+    next_url = f"https://api.bitbucket.org/2.0/repositories/{workspace}"
+    while True:
+        print(f"get repositories from {next_url} ...")
+
+        response = requests.get(url=next_url, auth=(user, app_key))
+        if response.status_code == 401:
+            print("failed to get repositories from BitBucket: unauthorized")
+            sys.exit(os.EX_NOPERM)
+
+        if response.status_code != 200:
+            print("failed to get repositories from BitBucket")
+            sys.exit(os.EX_IOERR)
+
+        payload = json.loads(response.content)
+
+        if "next" not in payload:
+            print("done!")
+            return repositories
+
+        repositories.extend(filter(lambda repo: project is None or repo["project"]["name"] == project, payload["values"]))
+        next_url = payload["next"]
+
+
+def sync_repositories(repositories, target_directory: str, sync_existing: bool = True):
+    for repository in repositories:
+        name = repository["name"]
+        project = repository["project"]["name"]
+        url = repository["links"]["clone"][1]["href"]
+        repository_directory = os.path.join(target_directory, url[url.index('/') + 1: -4])
+
+        if os.path.exists(repository_directory):
+            if sync_existing:
+                print(f"remote update {project}/{name}")
+                subprocess.Popen(["git", "remote", "update"], cwd=repository_directory).wait()
+            else:
+                print(f"skip existing {project}/{name}")
+        else:
+            print(f"clone {project}/{name}")
+            subprocess.Popen(["git", "clone", url], cwd=target_directory).wait()
+
+
+def get_keepass(file: str, entry: str):
+    try:
+        with subprocess.Popen(["keepassxc-cli", "show", "-s", file, entry],
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              stdin=subprocess.PIPE) as keepass:
+
+            password = bytes(getpass.getpass("KeePass Password: "), "UTF-8")
+            keepass.stdin.write(password)
+            output = keepass.communicate()
+            keepass.stdin.close()
+
+            if keepass.returncode != 0:
+                print("failed to get credentials from KeePass")
+                sys.exit(os.EX_IOERR)
+
+            values = output[0].decode("utf-8").split("\n")
+            values = list(filter(None, values))
+            values = list(map(lambda v: tuple(v.split(": ")), values))
+
+            return dict(values)
+    except FileNotFoundError:
+        print("failed to get credentials from KeePass: not installed")
+        sys.exit(os.EX_IOERR)
+
+
+if __name__ == "__main__":
+    args = argparse.ArgumentParser(description="Python Salat")
+    args.add_argument("workspace", type=str)
+
+    args.add_argument("--user", dest="bitbucket_user", help="BitBucket User", type=str)
+    args.add_argument("--key", dest="bitbucket_key", help="BitBucket App Key", type=str)
+    args.add_argument("--target", dest="target_directory", default=".", help="Target Directory for Backups", type=str)
+    args.add_argument("--project", dest="project", help="BitBucket Projekt", type=str)
+
+    args.add_argument("--only-download", dest="only_download", action="store_true", help="Don't update existing repos")
+
+    args.add_argument("--keepass-file", dest="keepass_file", help="KeePass Filename", type=str)
+    args.add_argument("--keepass-entry", dest="keepass_entry", help="KeePass App Key Entry", type=str)
+
+    args = args.parse_args()
+
+    if args.keepass_file is not None:
+        keepass_values = get_keepass(args.keepass_file, args.keepass_entry)
+        args.bitbucket_user = args.bitbucket_user if "UserName" not in keepass_values else keepass_values["UserName"]
+        args.bitbucket_key = args.bitbucket_key if "Password" not in keepass_values else keepass_values["Password"]
+
+    repos = get_repositories(
+        args.workspace,
+        args.project,
+        args.bitbucket_user if args.bitbucket_user is not None else input("BitBucket User: "),
+        args.bitbucket_key if args.bitbucket_key is not None else getpass.getpass("BitBucket App Key: ")
+    )
+
+    sync_repositories(
+        repos,
+        args.target_directory,
+        args.only_download
+    )
+

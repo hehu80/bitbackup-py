@@ -1,0 +1,4 @@
+/venv/
+/dist/
+/**/pysalad.egg-info/
+/.idea/
