@@ -1,3 +1,7 @@
+[<img src="https://img.shields.io/pypi/v/pybitbackup">](https://pypi.org/project/pybitbackup/)
+<img src="https://img.shields.io/badge/python-3.9-blue">
+<img src="https://img.shields.io/badge/license-MIT-green">
+
 # Bitbackup
 
 ## Description
